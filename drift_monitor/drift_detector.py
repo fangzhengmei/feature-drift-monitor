@@ -98,7 +98,7 @@ class DriftDetector:
         if columns:
             columns = [c for c in columns if c in common_columns]
         else:
-            columns = list(common_columns)
+            columns = [c for c in expected_df.columns if c in common_columns]
 
         if not columns:
             raise ValueError("No common columns found between expected and actual datasets")

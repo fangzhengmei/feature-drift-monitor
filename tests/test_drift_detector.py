@@ -185,3 +185,97 @@ class TestDriftDetector:
         assert "file_path" in report.expected_metadata
         assert "file_path" in report.actual_metadata
         assert report.expected_metadata["file_path"] != report.actual_metadata["file_path"]
+
+    def test_column_order_follows_expected_df_order(self):
+        np.random.seed(42)
+        expected_df = pd.DataFrame({
+            "z_col": np.random.normal(0, 1, 100),
+            "a_col": np.random.choice(["X", "Y", "Z"], 100),
+            "m_col": np.random.normal(10, 2, 100),
+            "b_col": np.random.choice(["A", "B"], 100),
+        })
+        actual_df = pd.DataFrame({
+            "b_col": np.random.choice(["A", "B"], 100),
+            "m_col": np.random.normal(10, 2, 100),
+            "z_col": np.random.normal(0, 1, 100),
+            "a_col": np.random.choice(["X", "Y", "Z"], 100),
+        })
+
+        detector = DriftDetector()
+        report = detector.detect(expected_df, actual_df)
+
+        expected_order = ["z_col", "a_col", "m_col", "b_col"]
+        actual_order = [c.column_name for c in report.column_reports]
+
+        assert actual_order == expected_order, f"Expected order {expected_order}, got {actual_order}"
+
+    def test_column_order_consistent_across_multiple_runs(self):
+        np.random.seed(42)
+        expected_df = pd.DataFrame({
+            "feature_c": np.random.normal(0, 1, 100),
+            "feature_a": np.random.normal(10, 2, 100),
+            "feature_b": np.random.choice(["X", "Y"], 100),
+        })
+        actual_df = pd.DataFrame({
+            "feature_b": np.random.choice(["X", "Y"], 100),
+            "feature_c": np.random.normal(0, 1, 100),
+            "feature_a": np.random.normal(10, 2, 100),
+        })
+
+        detector = DriftDetector()
+
+        orders = []
+        for _ in range(5):
+            report = detector.detect(expected_df, actual_df)
+            order = [c.column_name for c in report.column_reports]
+            orders.append(order)
+
+        for i in range(1, len(orders)):
+            assert orders[i] == orders[0], f"Order changed between runs: {orders[0]} vs {orders[i]}"
+
+    def test_column_order_with_different_column_sets(self):
+        np.random.seed(42)
+        expected_df = pd.DataFrame({
+            "col1": np.random.normal(0, 1, 100),
+            "col2": np.random.normal(10, 2, 100),
+            "col3": np.random.choice(["X", "Y"], 100),
+            "col4": np.random.normal(5, 1, 100),
+        })
+        actual_df = pd.DataFrame({
+            "col4": np.random.normal(5, 1, 100),
+            "col2": np.random.normal(10, 2, 100),
+            "col1": np.random.normal(0, 1, 100),
+            "extra_col": np.random.normal(0, 1, 100),
+        })
+
+        detector = DriftDetector()
+        report = detector.detect(expected_df, actual_df)
+
+        common_cols_in_expected_order = ["col1", "col2", "col4"]
+        actual_order = [c.column_name for c in report.column_reports]
+
+        assert actual_order == common_cols_in_expected_order
+        assert "col3" not in actual_order
+        assert "extra_col" not in actual_order
+
+    def test_column_order_with_user_specified_columns(self):
+        np.random.seed(42)
+        expected_df = pd.DataFrame({
+            "col_d": np.random.normal(0, 1, 100),
+            "col_a": np.random.normal(10, 2, 100),
+            "col_c": np.random.choice(["X", "Y"], 100),
+            "col_b": np.random.normal(5, 1, 100),
+        })
+        actual_df = pd.DataFrame({
+            "col_a": np.random.normal(10, 2, 100),
+            "col_b": np.random.normal(5, 1, 100),
+            "col_c": np.random.choice(["X", "Y"], 100),
+            "col_d": np.random.normal(0, 1, 100),
+        })
+
+        detector = DriftDetector()
+        user_specified_order = ["col_b", "col_d", "col_a"]
+        report = detector.detect(expected_df, actual_df, columns=user_specified_order)
+
+        actual_order = [c.column_name for c in report.column_reports]
+        assert actual_order == user_specified_order
