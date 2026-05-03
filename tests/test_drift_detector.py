@@ -156,3 +156,32 @@ class TestDriftDetector:
         assert report.config["n_bins"] == 20
         assert report.config["bucket_type"] == "equal_freq"
         assert report.config["categorical_threshold"] == 5
+
+    def test_metadata_not_mixed_between_expected_and_actual(self, temp_dir):
+        expected_df = pd.DataFrame({
+            "age": [25, 30, 35, 40, 45],
+            "income": [50000, 60000, 70000, 80000, 90000],
+        })
+        actual_df = pd.DataFrame({
+            "age": [28, 32, 38, 42, 48, 50, 55],
+            "income": [55000, 65000, 75000, 85000, 95000, 100000, 110000],
+            "score": [100, 200, 300, 400, 500, 600, 700],
+        })
+
+        expected_path = temp_dir / "expected.csv"
+        actual_path = temp_dir / "actual.csv"
+        expected_df.to_csv(expected_path, index=False)
+        actual_df.to_csv(actual_path, index=False)
+
+        detector = DriftDetector()
+        report = detector.detect_from_files(str(expected_path), str(actual_path))
+
+        assert report.expected_metadata["rows"] == 5, "Expected should have 5 rows"
+        assert report.actual_metadata["rows"] == 7, "Actual should have 7 rows"
+
+        assert len(report.expected_metadata.get("columns", [])) == 2, "Expected should have 2 columns"
+        assert len(report.actual_metadata.get("columns", [])) == 3, "Actual should have 3 columns"
+
+        assert "file_path" in report.expected_metadata
+        assert "file_path" in report.actual_metadata
+        assert report.expected_metadata["file_path"] != report.actual_metadata["file_path"]

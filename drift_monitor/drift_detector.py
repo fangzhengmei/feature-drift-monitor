@@ -67,11 +67,13 @@ class DriftDetector:
         expected_kwargs = expected_kwargs or {}
         actual_kwargs = actual_kwargs or {}
 
-        expected_df = self.data_loader.load(expected_path, **expected_kwargs)
-        actual_df = self.data_loader.load(actual_path, **actual_kwargs)
+        expected_loader = DataLoader()
+        expected_df = expected_loader.load(expected_path, **expected_kwargs)
+        expected_metadata = expected_loader.get_metadata()
 
-        expected_metadata = self.data_loader.get_metadata()
-        actual_metadata = self.data_loader.get_metadata()
+        actual_loader = DataLoader()
+        actual_df = actual_loader.load(actual_path, **actual_kwargs)
+        actual_metadata = actual_loader.get_metadata()
 
         return self.detect(
             expected_df,
